@@ -1,0 +1,49 @@
+const ORDER_STATUS = {
+    CREATED: 'CREATED',
+    PENDING_REVIEW: 'PENDING_REVIEW',
+    CONFIRMED: 'CONFIRMED',
+    PACKING: 'PACKING',
+    PACKED: 'PACKED',
+    OUT_FOR_DELIVERY: 'OUT_FOR_DELIVERY',
+    DELIVERED: 'DELIVERED',
+    CANCELLED: 'CANCELLED',
+    RETURNED: 'RETURNED'
+};
+
+const VALID_TRANSITIONS = {
+    [ORDER_STATUS.CREATED]: [ORDER_STATUS.PENDING_REVIEW, ORDER_STATUS.CONFIRMED, ORDER_STATUS.CANCELLED],
+    [ORDER_STATUS.PENDING_REVIEW]: [ORDER_STATUS.CONFIRMED, ORDER_STATUS.CANCELLED],
+    [ORDER_STATUS.CONFIRMED]: [ORDER_STATUS.PACKING, ORDER_STATUS.CANCELLED],
+    [ORDER_STATUS.PACKING]: [ORDER_STATUS.PACKED],
+    [ORDER_STATUS.PACKED]: [ORDER_STATUS.OUT_FOR_DELIVERY],
+    [ORDER_STATUS.OUT_FOR_DELIVERY]: [ORDER_STATUS.DELIVERED],
+    [ORDER_STATUS.DELIVERED]: [ORDER_STATUS.RETURNED],
+    [ORDER_STATUS.CANCELLED]: [],
+    [ORDER_STATUS.RETURNED]: []
+};
+
+const ROLE_STATUS_PERMISSIONS = {
+    SUPER_ADMIN: Object.values(ORDER_STATUS),
+    ADMIN: Object.values(ORDER_STATUS),
+    CALL_CENTER_AGENT: [ORDER_STATUS.CONFIRMED, ORDER_STATUS.CANCELLED],
+    SELLER: [], // Read-only after creation
+    STOCK_KEEPER: [ORDER_STATUS.PACKING], // Limited to their task
+    PACKAGING_AGENT: [ORDER_STATUS.PACKED], // Limited to their task
+    DELIVERY_AGENT: [ORDER_STATUS.OUT_FOR_DELIVERY, ORDER_STATUS.DELIVERED] // Limited to their task
+};
+
+const isValidTransition = (currentStatus, nextStatus) => {
+    const allowed = VALID_TRANSITIONS[currentStatus] || [];
+    return allowed.includes(nextStatus);
+};
+
+const canRoleUpdateToStatus = (role, nextStatus) => {
+    const allowed = ROLE_STATUS_PERMISSIONS[role] || [];
+    return allowed.includes(nextStatus);
+};
+
+module.exports = {
+    ORDER_STATUS,
+    isValidTransition,
+    canRoleUpdateToStatus
+};

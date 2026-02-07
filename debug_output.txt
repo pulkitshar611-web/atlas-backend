@@ -1,0 +1,31 @@
+--- Users ---
+[USER] ID: 1 | Name: Super Admin | Role: SUPER_ADMIN | CreatedBy: null
+[USER] ID: 2 | Name: Admin User | Role: ADMIN | CreatedBy: null
+[USER] ID: 3 | Name: Seller User | Role: SELLER | CreatedBy: null
+[USER] ID: 4 | Name: Call Center Agent | Role: CALL_CENTER_AGENT | CreatedBy: null
+[USER] ID: 5 | Name: Call Center Manager | Role: CALL_CENTER_MANAGER | CreatedBy: null
+[USER] ID: 6 | Name: Stock Keeper | Role: STOCK_KEEPER | CreatedBy: null
+[USER] ID: 7 | Name: Packaging Agent | Role: PACKAGING_AGENT | CreatedBy: null
+[USER] ID: 8 | Name: Delivery Agent | Role: DELIVERY_AGENT | CreatedBy: null
+[USER] ID: 9 | Name: seller a | Role: SELLER | CreatedBy: 9
+[USER] ID: 10 | Name: admin a | Role: ADMIN | CreatedBy: 1
+[USER] ID: 11 | Name: seller1 s | Role: SELLER | CreatedBy: 10
+[USER] ID: 12 | Name: call s1 | Role: CALL_CENTER_AGENT | CreatedBy: 10
+[USER] ID: 13 | Name: pack aa | Role: PACKAGING_AGENT | CreatedBy: 10
+[USER] ID: 14 | Name: ak a | Role: SELLER | CreatedBy: 10
+[USER] ID: 15 | Name: del s | Role: DELIVERY_AGENT | CreatedBy: 10
+[USER] ID: 16 | Name: test | Role: CALL_CENTER_AGENT | CreatedBy: null
+[USER] ID: 17 | Name: test1 | Role: CALL_CENTER_AGENT | CreatedBy: null
+
+--- Orders ---
+[ORDER] Number: ORD-1770099886712-824 | Status: Pending | SellerAdminId: 9 | Shop: sell
+[ORDER] Number: ORD-1770102665821-668 | Status: Pending | SellerAdminId: 10 | Shop: aa
+[ORDER] Number: ORD-1770102862758-237 | Status: PACKED | SellerAdminId: 10 | Shop: aa
+[ORDER] Number: ORD-1770118766286-763 | Status: DELIVERED | SellerAdminId: 10 | Shop: cc
+[ORDER] Number: ORD-1770120365273-360 | Status: PACKED | SellerAdminId: 10 | Shop: aa
+[ORDER] Number: ORD-1770180759960-665 | Status: DELIVERED | SellerAdminId: 10 | Shop: aa
+[ORDER] Number: TEST-1770189055113-901 | Status: PENDING_REVIEW | SellerAdminId: null | Shop: Atlas Official Store
+[ORDER] Number: TEST-1770189055133-673 | Status: PENDING_REVIEW | SellerAdminId: null | Shop: Atlas Official Store
+[ORDER] Number: TEST-1770189055138-612 | Status: PENDING_REVIEW | SellerAdminId: null | Shop: Atlas Official Store
+[ORDER] Number: TEST-1770189055149-381 | Status: PENDING_REVIEW | SellerAdminId: null | Shop: Atlas Official Store
+[ORDER] Number: TEST-1770189055153-203 | Status: PENDING_REVIEW | SellerAdminId: null | Shop: Atlas Official Store
