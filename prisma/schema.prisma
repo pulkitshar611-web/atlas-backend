@@ -33,6 +33,7 @@ model User {
   adminProducts    Product[]       @relation("ProductAdmin")
   createdAt        DateTime        @default(now())
   updatedAt        DateTime        @updatedAt
+  @@map("user")
 }
 
 
@@ -41,6 +42,8 @@ model Role {
   name        String       @unique // One of: SUPER_ADMIN, ADMIN, SELLER, CALL_CENTER_AGENT, CALL_CENTER_MANAGER, STOCK_KEEPER, PACKAGING_AGENT, DELIVERY_AGENT
   users       User[]
   permissions Permission[]
+   @@map("role")
+
 }
 
 model Permission {
@@ -50,6 +53,7 @@ model Permission {
   action      String // VIEW, CREATE, UPDATE, DELETE
   description String?
   roles       Role[]
+ @@map("permission")
 }
 
 model Seller {
@@ -63,6 +67,8 @@ model Seller {
   sourcingRequests SourcingRequest[]
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
+   @@map("seller")
+
 }
 
 
@@ -87,6 +93,7 @@ model Product {
   inventory     Inventory[]
   createdAt     DateTime    @default(now())
   updatedAt     DateTime    @updatedAt
+  @@map("product")
 }
 
 model Warehouse {
@@ -96,6 +103,8 @@ model Warehouse {
   inventory Inventory[]
   createdAt DateTime    @default(now())
   updatedAt DateTime    @updatedAt
+   @@map("warehouse")
+
 }
 
 model Inventory {
@@ -108,6 +117,8 @@ model Inventory {
   movements   StockMovement[]
 
   @@unique([productId, warehouseId])
+  @@map("inventory")
+
 }
 
 model StockMovement {
@@ -118,6 +129,8 @@ model StockMovement {
   type        String // IN, OUT, ADJUSTMENT
   reason      String?
   createdAt   DateTime  @default(now())
+  @@map("stockmovement")
+
 }
 
 model Customer {
@@ -154,6 +167,8 @@ model Order {
   callCenterAgent User?          @relation("CallCenterAgent", fields: [callCenterAgentId], references: [id])
   createdAt       DateTime       @default(now())
   updatedAt       DateTime       @updatedAt
+  @@map("order")
+
 }
 
 model OrderItem {
@@ -165,6 +180,8 @@ model OrderItem {
   product   String?
   quantity  Int
   price     Float
+  @@map("orderitem")
+
 }
 
 model PackagingTask {
@@ -178,6 +195,8 @@ model PackagingTask {
   weight      Float?
   qualityCheck String?
   notes       String?   @db.Text
+  @@map("packagingtask")
+
 }
 
 model DeliveryTask {
@@ -193,6 +212,8 @@ model DeliveryTask {
   notes        String?
   weight       Float?
   qualityCheck String?   // PASSED, CONDITIONAL, FAILED
+  @@map("deliverytask")
+
 }
 
 model CallNote {
@@ -203,6 +224,8 @@ model CallNote {
   agentId   Int
   agent     User     @relation(fields: [agentId], references: [id])
   createdAt DateTime @default(now())
+  @@map("callnote")
+
 }
 
 model AuditLog {
@@ -214,6 +237,8 @@ model AuditLog {
   performedByRole String
   metadata        Json?
   createdAt       DateTime @default(now())
+  @@map("auditLog")
+
 }
 
 
@@ -235,6 +260,8 @@ model SourcingRequest {
   seller            Seller   @relation(fields: [sellerId], references: [id])
   createdAt         DateTime @default(now())
   updatedAt         DateTime @updatedAt
+  @@map("sourcingrequest")
+
 }
 
 model SystemConfiguration {
@@ -242,6 +269,8 @@ model SystemConfiguration {
   key       String   @unique
   value     Json
   updatedAt DateTime @updatedAt
+   @@map("systemconfiguration")
+
 }
 
 model PackagingMaterial {
@@ -255,4 +284,5 @@ model PackagingMaterial {
   admin     User?    @relation(fields: [adminId], references: [id])
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+  @@map("packagingmaterial")
 }
