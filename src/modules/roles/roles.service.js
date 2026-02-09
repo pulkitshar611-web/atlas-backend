@@ -6,7 +6,9 @@ const listRoles = async () => {
             _count: {
                 select: { users: true }
             },
-            permissions: true
+            permissions: {
+                include: { permission: true }
+            }
         }
     });
 
@@ -14,7 +16,7 @@ const listRoles = async () => {
         id: role.id,
         name: role.name,
         users: role._count.users,
-        permissions: role.permissions,
+        permissions: role.permissions.map(p => p.permission),
         description: `Manage ${role.name.toLowerCase()} operations`,
         status: 'Active'
     }));
@@ -25,20 +27,27 @@ const getPermissions = async () => {
 };
 
 const updatePermissions = async (roleId, permissionIds) => {
-    // 1. Disconnect all existing
-    // 2. Connect new ones
-    // simpler: using set (if array provided) or explicit loop
+    // 1. Delete all existing mappings for this role
+    await prisma.permissionToRole.deleteMany({
+        where: { roleId: parseInt(roleId) }
+    });
 
-    // We expect permissionIds to be an array of integers (IDs)
-    return await prisma.role.update({
+    // 2. Create new mappings
+    if (permissionIds && permissionIds.length > 0) {
+        await prisma.permissionToRole.createMany({
+            data: permissionIds.map(id => ({
+                roleId: parseInt(roleId),
+                permissionId: parseInt(id)
+            }))
+        });
+    }
+
+    return await prisma.role.findUnique({
         where: { id: parseInt(roleId) },
-        data: {
-            permissions: {
-                set: permissionIds.map(id => ({ id: parseInt(id) }))
-            }
-        },
         include: {
-            permissions: true
+            permissions: {
+                include: { permission: true }
+            }
         }
     });
 };

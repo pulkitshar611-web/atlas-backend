@@ -11,7 +11,9 @@ const login = async (req, res) => {
             include: {
                 role: {
                     include: {
-                        permissions: true
+                        permissions: {
+                            include: { permission: true }
+                        }
                     }
                 }
             }
@@ -32,10 +34,10 @@ const login = async (req, res) => {
         }
 
         const roleName = user.role ? user.role.name : null;
-        const permissions = user.role && user.role.permissions ? user.role.permissions.map(p => p.code) : [];
+        const permissions = user.role && user.role.permissions ? user.role.permissions.map(p => p.permission.code) : [];
 
         const token = jwt.sign(
-            { id: user.id, email: user.email, role: roleName, permissions },
+            { id: user.id, email: user.email, role: roleName, permissions, createdById: user.createdById },
             process.env.JWT_SECRET,
             { expiresIn: '24h' }
         );
@@ -47,7 +49,8 @@ const login = async (req, res) => {
                 email: user.email,
                 name: user.name,
                 role: roleName,
-                permissions
+                permissions,
+                createdById: user.createdById
             }
         });
     } catch (error) {
@@ -100,13 +103,15 @@ const getMe = async (req, res) => {
             include: {
                 role: {
                     include: {
-                        permissions: true
+                        permissions: {
+                            include: { permission: true }
+                        }
                     }
                 }
             }
         });
 
-        const permissions = user.role && user.role.permissions ? user.role.permissions.map(p => p.code) : [];
+        const permissions = user.role && user.role.permissions ? user.role.permissions.map(p => p.permission.code) : [];
 
         res.json({
             id: user.id,

@@ -2,16 +2,35 @@ const prisma = require('../../utils/prisma');
 const { logAction } = require('../../utils/auditLogger');
 const bcrypt = require('bcryptjs');
 
+const getAdminId = async (user) => {
+    const { role, id: userId, createdById } = user;
+    const userRole = role?.name || role;
+
+    if (userRole === 'ADMIN') return userId;
+    if (createdById) return createdById;
+
+    // Fallback: Fetch from DB if not in token (for existing sessions)
+    const dbUser = await prisma.user.findUnique({
+        where: { id: userId },
+        select: { createdById: true }
+    });
+    return dbUser?.createdById || null;
+};
+
 const getCustomers = async (user = {}) => {
     const { role, id: userId } = user;
     const where = {};
+    const adminId = await getAdminId(user);
 
-    if (role === 'ADMIN') {
+    if (adminId) {
         where.orders = {
             some: {
-                seller: { adminId: userId }
+                seller: { adminId: adminId }
             }
         };
+    } else {
+        // If no adminId found, ensure no data is leaked
+        where.id = -1;
     }
 
     const customers = await prisma.customer.findMany({
@@ -44,14 +63,19 @@ const getCustomerById = async (id) => {
 const getOrders = async (filters = {}, user = {}) => {
     const where = {};
 
-    // If user is an agent, show all PENDING_REVIEW orders (not just assigned ones)
     const userRole = user.role?.name || user.role;
-    if (userRole === 'CALL_CENTER_AGENT') {
+    const adminId = await getAdminId(user);
+
+    if (['CALL_CENTER_AGENT', 'CALL_CENTER_MANAGER'].includes(userRole)) {
         if (!filters.status) {
             where.status = 'PENDING_REVIEW';
         }
+        where.seller = { adminId: adminId };
     } else if (userRole === 'ADMIN') {
-        where.seller = { adminId: user.id };
+        where.seller = { adminId: adminId };
+    } else {
+        // Fallback for other roles if needed
+        where.seller = { adminId: adminId || -1 };
     }
 
     if (filters.status) {
@@ -147,9 +171,12 @@ const getCallNotes = async (orderId) => {
 const getAgents = async (user = {}) => {
     const { role, id: userId } = user;
     const where = { role: { name: 'CALL_CENTER_AGENT' } };
+    const adminId = await getAdminId(user);
 
-    if (role === 'ADMIN') {
-        where.createdById = userId;
+    if (adminId) {
+        where.createdById = adminId;
+    } else {
+        where.id = -1;
     }
 
     const agents = await prisma.user.findMany({
@@ -222,10 +249,14 @@ const getDashboardStats = async (user = {}) => {
     const { role, id: userId } = user;
     let orderWhere = {};
     let agentWhere = { role: { name: 'CALL_CENTER_AGENT' }, isActive: true };
+    const adminId = await getAdminId(user);
 
-    if (role === 'ADMIN') {
-        orderWhere = { seller: { adminId: userId } };
-        agentWhere.createdById = userId;
+    if (adminId) {
+        orderWhere = { seller: { adminId: adminId } };
+        agentWhere.createdById = adminId;
+    } else {
+        orderWhere = { id: -1 };
+        agentWhere.id = -1;
     }
 
     // 1. Total Orders
@@ -340,12 +371,15 @@ const getDashboardStats = async (user = {}) => {
     };
 };
 
-const autoAssignOrders = async () => {
-    // 1. Get all unassigned orders (PENDING_REVIEW)
+const autoAssignOrders = async (user = {}) => {
+    const adminId = await getAdminId(user);
+
+    // 1. Get all unassigned orders (PENDING_REVIEW) scoped by admin
     const unassignedOrders = await prisma.order.findMany({
         where: {
             status: 'PENDING_REVIEW',
-            callCenterAgentId: null
+            callCenterAgentId: null,
+            seller: { adminId: adminId || -1 }
         },
         orderBy: { createdAt: 'asc' }
     });
@@ -358,8 +392,8 @@ const autoAssignOrders = async () => {
         isActive: true
     };
 
-    if (user && (user.role?.name === 'ADMIN' || user.role === 'ADMIN')) {
-        agentWhere.createdById = user.id;
+    if (adminId) {
+        agentWhere.createdById = adminId;
     }
 
     const agents = await prisma.user.findMany({
@@ -382,10 +416,10 @@ const autoAssignOrders = async () => {
     return { assigned: assignedCount, message: `Successfully assigned ${assignedCount} orders to ${agents.length} agents` };
 };
 
-const fixUnassignedOrders = async () => {
+const fixUnassignedOrders = async (user = {}) => {
     // Logic to fix unassigned orders - effectively same as auto-assign for now, 
     // but could include more complex re-balancing logic in future.
-    return await autoAssignOrders();
+    return await autoAssignOrders(user);
 };
 
 const createTestOrders = async () => {
@@ -415,9 +449,12 @@ const createTestOrders = async () => {
 const getManagerOrders = async ({ page = 1, limit = 50, search = '', status = '', agentId = '' }, user = {}) => {
     const where = {};
     const { role, id: userId } = user;
+    const adminId = await getAdminId(user);
 
-    if (role === 'ADMIN') {
-        where.seller = { adminId: userId };
+    if (adminId) {
+        where.seller = { adminId: adminId };
+    } else {
+        where.id = -1;
     }
 
     if (status && status !== 'All Statuses') {
@@ -464,10 +501,14 @@ const getManagerOrderStats = async (user = {}) => {
     const { role, id: userId } = user;
     let orderWhere = {};
     let agentWhere = { role: { name: 'CALL_CENTER_AGENT' }, isActive: true };
+    const adminId = await getAdminId(user);
 
-    if (role === 'ADMIN') {
-        orderWhere = { seller: { adminId: userId } };
-        agentWhere.createdById = userId;
+    if (adminId) {
+        orderWhere = { seller: { adminId: adminId } };
+        agentWhere.createdById = adminId;
+    } else {
+        orderWhere = { id: -1 };
+        agentWhere.id = -1;
     }
 
     // 1. Total Orders
@@ -547,10 +588,14 @@ const getPerformanceReports = async (user = {}) => {
     const { role, id: userId } = user;
     const whereAgent = { role: { name: 'CALL_CENTER_AGENT' } };
     let orderWhere = {};
+    const adminId = await getAdminId(user);
 
-    if (role === 'ADMIN') {
-        whereAgent.createdById = userId;
-        orderWhere = { seller: { adminId: userId } };
+    if (adminId) {
+        whereAgent.createdById = adminId;
+        orderWhere = { seller: { adminId: adminId } };
+    } else {
+        whereAgent.id = -1;
+        orderWhere = { id: -1 };
     }
 
     const agents = await prisma.user.findMany({
@@ -627,10 +672,15 @@ const getOrderStatistics = async (user = {}) => {
     const { role, id: userId } = user;
     let orderWhere = {};
     let agentSearch = { role: { name: 'CALL_CENTER_AGENT' } };
+    const completedStatuses = ['COMPLETED', 'CONFIRMED', 'DELIVERED', 'SHIPPED'];
+    const adminId = await getAdminId(user);
 
-    if (role === 'ADMIN') {
-        orderWhere = { seller: { adminId: userId } };
-        agentSearch.createdById = userId;
+    if (adminId) {
+        orderWhere = { seller: { adminId: adminId } };
+        agentSearch.createdById = adminId;
+    } else {
+        orderWhere = { id: -1 };
+        agentSearch.id = -1;
     }
 
     const totalOrders = await prisma.order.count({ where: orderWhere });
@@ -650,6 +700,8 @@ const getOrderStatistics = async (user = {}) => {
             ...orderWhere
         }
     });
+
+    const completionRate = totalOrders > 0 ? Math.round((completedCount / totalOrders) * 100) : 0;
 
     const avgValue = await prisma.order.aggregate({
         _avg: { totalAmount: true },

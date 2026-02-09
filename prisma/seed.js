@@ -33,6 +33,49 @@ async function main() {
     }
     console.log('Roles verified.');
 
+    // 1.5 Seed Permissions
+    const permissions = [
+        { code: 'DASHBOARD_VIEW', module: 'DASHBOARD', action: 'VIEW' },
+        { code: 'ORDERS_VIEW', module: 'ORDERS', action: 'VIEW' },
+        { code: 'PRODUCTS_VIEW', module: 'PRODUCTS', action: 'VIEW' },
+        { code: 'INVENTORY_VIEW', module: 'INVENTORY', action: 'VIEW' }
+    ];
+
+    const seededPermissions = [];
+    for (const p of permissions) {
+        const perm = await prisma.permission.upsert({
+            where: { code: p.code },
+            update: {},
+            create: p
+        });
+        seededPermissions.push(perm);
+    }
+    console.log('Permissions verified.');
+
+    // Link all permissions to SUPER_ADMIN and ADMIN
+    const adminRoles = await prisma.role.findMany({
+        where: { name: { in: ['SUPER_ADMIN', 'ADMIN'] } }
+    });
+
+    for (const role of adminRoles) {
+        for (const perm of seededPermissions) {
+            await prisma.permissionToRole.upsert({
+                where: {
+                    permissionId_roleId: {
+                        permissionId: perm.id,
+                        roleId: role.id
+                    }
+                },
+                update: {},
+                create: {
+                    permissionId: perm.id,
+                    roleId: role.id
+                }
+            });
+        }
+    }
+    console.log('Permissions linked to Admin roles.');
+
     // 2. Seed Users
     for (const userData of usersToSeed) {
         const role = await prisma.role.findUnique({ where: { name: userData.role } });

@@ -17,7 +17,9 @@ const verifyToken = async (req, res, next) => {
             include: {
                 role: {
                     include: {
-                        permissions: true
+                        permissions: {
+                            include: { permission: true }
+                        }
                     }
                 }
             }
@@ -32,7 +34,7 @@ const verifyToken = async (req, res, next) => {
             id: user.id,
             email: user.email,
             role: user.role?.name,
-            permissions: user.role?.permissions?.map(p => p.code) || []
+            permissions: user.role?.permissions?.map(p => p.permission.code) || []
         };
 
         next();
