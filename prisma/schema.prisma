@@ -34,7 +34,6 @@ model User {
   warehouses       Warehouse[]     @relation("WarehouseAdmin")
   createdAt        DateTime        @default(now())
   updatedAt        DateTime        @updatedAt
-
   @@map("user")
 }
 
@@ -107,7 +106,6 @@ model Product {
   inventory     Inventory[]
   createdAt     DateTime    @default(now())
   updatedAt     DateTime    @updatedAt
-
   @@map("product")
 }
 
@@ -160,7 +158,6 @@ model Customer {
   orders    Order[]
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
-
   @@map("customer")
 }
 
@@ -304,6 +301,5 @@ model PackagingMaterial {
   admin     User?    @relation(fields: [adminId], references: [id])
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
-
   @@map("packaging_material")
 }
