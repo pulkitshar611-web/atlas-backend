@@ -1,4 +1,5 @@
 const prisma = require('../../utils/prisma'); // Adjusted path
+const { deductStockForOrder, restoreStockForOrder } = require('./orders.stockService');
 
 const getOrders = async (req, res) => {
     const { role, id: userId, sellerId: userSellerId } = req.user;
@@ -284,6 +285,14 @@ const updateOrderStatus = async (req, res) => {
                     }
                 });
             } else if (nextStatus === 'PACKED') {
+                // ✅ NEW: Deduct stock before marking as packed
+                try {
+                    await deductStockForOrder(ord.id, tx);
+                } catch (stockError) {
+                    throw new Error(`Cannot pack order: ${stockError.message}`);
+                }
+
+                // Update packaging task completion
                 await tx.packagingTask.update({
                     where: { orderId: ord.id },
                     data: {
@@ -317,6 +326,16 @@ const updateOrderStatus = async (req, res) => {
                         notes: req.body.notes || 'Delivery Failed'
                     }
                 });
+            } else if (nextStatus === 'CANCELLED') {
+                // ✅ NEW: Restore stock if order was already PACKED
+                if (activeStatus === 'PACKED' || activeStatus === 'OUT_FOR_DELIVERY' || activeStatus === 'IN_PACKAGING') {
+                    try {
+                        await restoreStockForOrder(ord.id, tx);
+                    } catch (restoreError) {
+                        console.error('Stock restoration error:', restoreError);
+                        // Don't block cancellation if restoration fails
+                    }
+                }
             }
 
             return ord;

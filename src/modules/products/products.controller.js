@@ -1,5 +1,6 @@
 const { PrismaClient } = require('@prisma/client');
 const prisma = new PrismaClient();
+const { uploadToCloudinary } = require('../../utils/cloudinary');
 
 const createProduct = async (req, res) => {
     try {
@@ -35,6 +36,8 @@ const createProduct = async (req, res) => {
 
         const sku = req.body.sku || req.body.code || `SKU-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
 
+        const imageUrl = image ? await uploadToCloudinary(image) : null;
+
         const productData = {
             name: finalName,
             nameAr: nameAr || null,
@@ -46,7 +49,7 @@ const createProduct = async (req, res) => {
             stock: parseInt(stockQuantity || stock || 0),
             status: status || 'Active',
             productLink: productLink || null,
-            image: image || null,
+            image: imageUrl,
             variants: variants || [],
             sellerId: sellerId ? parseInt(sellerId) : null,
             adminId: (role === 'ADMIN' || role === 'SUPER_ADMIN') ? userId : null
@@ -201,11 +204,16 @@ const updateProduct = async (req, res) => {
             }
         }
 
+        let imageUrl = image;
+        if (image && !image.startsWith('http')) {
+            imageUrl = await uploadToCloudinary(image);
+        }
+
         const product = await prisma.product.update({
             where: { id: parseInt(id) },
             data: {
                 ...updateData,
-                image: image !== undefined ? image : undefined
+                image: image !== undefined ? imageUrl : undefined
             },
             include: {
                 seller: {

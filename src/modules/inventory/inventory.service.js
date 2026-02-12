@@ -52,6 +52,8 @@ const listWarehouses = async (user) => {
             id: w.id,
             name: w.name,
             location: w.location,
+            description: w.description,
+            status: w.status,
             products: uniqueProductsCount,
             current: totalUnits,
             capacity: capacity,
