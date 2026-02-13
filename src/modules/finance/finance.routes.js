@@ -15,4 +15,13 @@ router.get('/superadmin/transactions', requireAuth, requireRole(['SUPER_ADMIN'])
 router.get('/superadmin/payments', requireAuth, requireRole(['SUPER_ADMIN']), superAdminFinanceController.getPayments);
 router.get('/superadmin/platforms', requireAuth, requireRole(['SUPER_ADMIN']), superAdminFinanceController.getPlatforms);
 
+// Payment Platform Management Routes
+router.get('/platforms', requireAuth, requireRole(['SUPER_ADMIN', 'ADMIN']), financeController.getPlatforms);
+router.post('/platforms', requireAuth, requireRole(['SUPER_ADMIN', 'ADMIN']), financeController.createPlatform);
+router.get('/platforms/:id', requireAuth, requireRole(['SUPER_ADMIN', 'ADMIN']), financeController.getPlatformById);
+router.put('/platforms/:id/verify', requireAuth, requireRole(['SUPER_ADMIN', 'ADMIN']), financeController.verifyPlatform);
+router.delete('/platforms/:id', requireAuth, requireRole(['SUPER_ADMIN', 'ADMIN']), financeController.disconnectPlatform);
+router.post('/platforms/:id/demo-sync', requireAuth, requireRole(['SUPER_ADMIN', 'ADMIN']), financeController.demoSyncOrders);
+
+
 module.exports = router;

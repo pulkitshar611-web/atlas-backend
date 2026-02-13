@@ -164,6 +164,21 @@ model Customer {
   @@map("customer")
 }
 
+model PaymentPlatform {
+  id        Int      @id @default(autoincrement())
+  type      String   // Amazon, Shopify, Magento
+  name      String
+  url       String
+  apiKey    String   // Store encrypted or hashed
+  status    String   @default("Pending") // Pending, Active, Disconnected
+  adminId   Int?     // Scoping to Admin/Tenant
+  orders    Order[]
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("paymentplatform")
+}
+
 model Order {
   id              Int            @id @default(autoincrement())
   orderNumber     String         @unique
@@ -179,6 +194,8 @@ model Order {
   seller          Seller         @relation(fields: [sellerId], references: [id])
   customerId      Int?
   customer        Customer?      @relation(fields: [customerId], references: [id])
+  platformId      Int?
+  platform        PaymentPlatform? @relation(fields: [platformId], references: [id])
   items           OrderItem[]
   packagingTask   PackagingTask?
   deliveryTask    DeliveryTask?

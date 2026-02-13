@@ -162,8 +162,246 @@ const getSellerFinanceData = async (userId) => {
     };
 };
 
+// ============= PAYMENT PLATFORM MANAGEMENT =============
+
+const getPlatforms = async (user) => {
+    const { role, id } = user;
+
+    let where = {};
+
+    // Scope platforms to admin
+    if (role === 'ADMIN') {
+        where.adminId = id;
+    } else if (role === 'SUPER_ADMIN') {
+        // Super admin can see all platforms
+    } else {
+        throw new Error('Forbidden: No access to platforms');
+    }
+
+    const platforms = await prisma.paymentPlatform.findMany({
+        where,
+        orderBy: { createdAt: 'desc' }
+    });
+
+    return platforms;
+};
+
+const createPlatform = async (user, data) => {
+    const { role, id } = user;
+
+    if (!['ADMIN', 'SUPER_ADMIN'].includes(role)) {
+        throw new Error('Forbidden: Only admins can create platforms');
+    }
+
+    const platform = await prisma.paymentPlatform.create({
+        data: {
+            type: data.type,
+            name: data.name,
+            url: data.url,
+            apiKey: data.apiKey, // In production, encrypt this
+            status: 'Pending',
+            adminId: role === 'ADMIN' ? id : null
+        }
+    });
+
+    return platform;
+};
+
+const verifyPlatform = async (user, platformId) => {
+    const { role, id } = user;
+
+    if (!['ADMIN', 'SUPER_ADMIN'].includes(role)) {
+        throw new Error('Forbidden: Only admins can verify platforms');
+    }
+
+    // Find platform
+    const platform = await prisma.paymentPlatform.findUnique({
+        where: { id: parseInt(platformId) }
+    });
+
+    if (!platform) {
+        throw new Error('Platform not found');
+    }
+
+    // Check ownership for admins
+    if (role === 'ADMIN' && platform.adminId !== id) {
+        throw new Error('Forbidden: You can only verify your own platforms');
+    }
+
+    // Update platform status to Active (NO order creation)
+    const updatedPlatform = await prisma.paymentPlatform.update({
+        where: { id: parseInt(platformId) },
+        data: { status: 'Active' }
+    });
+
+    return updatedPlatform;
+};
+
+const disconnectPlatform = async (user, platformId) => {
+    const { role, id } = user;
+
+    if (!['ADMIN', 'SUPER_ADMIN'].includes(role)) {
+        throw new Error('Forbidden: Only admins can disconnect platforms');
+    }
+
+    // Find platform
+    const platform = await prisma.paymentPlatform.findUnique({
+        where: { id: parseInt(platformId) }
+    });
+
+    if (!platform) {
+        throw new Error('Platform not found');
+    }
+
+    // Check ownership for admins
+    if (role === 'ADMIN' && platform.adminId !== id) {
+        throw new Error('Forbidden: You can only disconnect your own platforms');
+    }
+
+    // Delete platform
+    await prisma.paymentPlatform.delete({
+        where: { id: parseInt(platformId) }
+    });
+
+    return { message: 'Platform disconnected successfully' };
+};
+
+const getPlatformById = async (user, platformId) => {
+    const { role, id } = user;
+
+    if (!['ADMIN', 'SUPER_ADMIN'].includes(role)) {
+        throw new Error('Forbidden: No access to platforms');
+    }
+
+    const platform = await prisma.paymentPlatform.findUnique({
+        where: { id: parseInt(platformId) },
+        include: {
+            orders: {
+                take: 10,
+                orderBy: { createdAt: 'desc' }
+            }
+        }
+    });
+
+    if (!platform) {
+        throw new Error('Platform not found');
+    }
+
+    // Check ownership for admins
+    if (role === 'ADMIN' && platform.adminId !== id) {
+        throw new Error('Forbidden: You can only view your own platforms');
+    }
+
+    return platform;
+};
+
+const createDummyOrders = async (platform, adminUserId) => {
+    // Find a seller to associate orders with
+    // For admin, find their first seller
+    let seller;
+
+    if (platform.adminId) {
+        seller = await prisma.seller.findFirst({
+            where: { adminId: platform.adminId }
+        });
+    }
+
+    // If no seller found, find any seller
+    if (!seller) {
+        seller = await prisma.seller.findFirst();
+    }
+
+    if (!seller) {
+        console.warn('No seller found to create dummy orders');
+        return;
+    }
+
+    // Create 3 dummy orders
+    const dummyOrders = [
+        {
+            customerName: `${platform.type} Customer 1`,
+            customerPhone: '+971501234567',
+            totalAmount: 299.99,
+            products: [{ name: 'Product A', quantity: 2, price: 149.995 }]
+        },
+        {
+            customerName: `${platform.type} Customer 2`,
+            customerPhone: '+971507654321',
+            totalAmount: 499.99,
+            products: [{ name: 'Product B', quantity: 1, price: 499.99 }]
+        },
+        {
+            customerName: `${platform.type} Customer 3`,
+            customerPhone: '+971509876543',
+            totalAmount: 799.99,
+            products: [{ name: 'Product C', quantity: 3, price: 266.663 }]
+        }
+    ];
+
+    for (const orderData of dummyOrders) {
+        // Generate unique order number
+        const orderNumber = `ORD-${platform.type.toUpperCase()}-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
+
+        await prisma.order.create({
+            data: {
+                orderNumber,
+                customerName: orderData.customerName,
+                customerPhone: orderData.customerPhone,
+                status: 'PENDING_REVIEW',
+                totalAmount: orderData.totalAmount,
+                shippingAddress: `${platform.name} - Auto-synced address`,
+                internalNotes: `Auto-created from ${platform.type} platform integration`,
+                sellerId: seller.id,
+                platformId: platform.id,
+                items: {
+                    create: orderData.products.map(product => ({
+                        product: product.name,
+                        quantity: product.quantity,
+                        price: product.price
+                    }))
+                }
+            }
+        });
+    }
+};
+
+// ============= DEMO SYNC ORDERS =============
+
+const demoSyncOrders = async (user, platformId) => {
+    const { role, id } = user;
+
+    if (!['ADMIN', 'SUPER_ADMIN'].includes(role)) {
+        throw new Error('Forbidden: Only admins can sync demo orders');
+    }
+
+    // Find platform
+    const platform = await prisma.paymentPlatform.findUnique({
+        where: { id: parseInt(platformId) }
+    });
+
+    if (!platform) {
+        throw new Error('Platform not found');
+    }
+
+    // Check ownership for admins
+    if (role === 'ADMIN' && platform.adminId !== id) {
+        throw new Error('Forbidden: You can only sync orders for your own platforms');
+    }
+
+    // Create dummy orders using existing helper
+    await createDummyOrders(platform, id);
+
+    return { message: '3 demo orders synced successfully', count: 3 };
+};
+
 module.exports = {
     getSummary,
     getFinancialOrders,
-    getSellerFinanceData
+    getSellerFinanceData,
+    getPlatforms,
+    createPlatform,
+    verifyPlatform,
+    disconnectPlatform,
+    getPlatformById,
+    demoSyncOrders
 };
